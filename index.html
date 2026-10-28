@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>テキストケース 一括変換 ツール</title>
+<script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+<div class="max-w-3xl mx-auto p-4">
+  <h1 class="text-2xl font-bold text-gray-800 mb-6">テキストケース 一括変換 ツール</h1>
+
+  <div class="bg-white rounded-xl shadow-md p-5 mb-4">
+    <div class="mb-4">
+      <label for="text-input" class="block text-sm font-medium text-gray-700 mb-1">入力テキスト（複数行対応）</label>
+      <textarea id="text-input" rows="5"
+        class="w-full border border-gray-300 rounded-md p-3 font-mono text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+        placeholder="hello world&#10;foo bar baz&#10;user_name"
+        oninput="convertAll()"></textarea>
+    </div>
+
+    <!-- オプション -->
+    <div class="flex flex-wrap items-center gap-4 mb-4 pb-4 border-b border-gray-100">
+      <label class="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+        <input type="checkbox" id="array-mode" onchange="convertAll()" class="rounded"
+          aria-label="配列形式で出力">
+        <span>配列形式で出力</span>
+      </label>
+      <label class="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+        <input type="checkbox" id="per-line" onchange="convertAll()" class="rounded"
+          aria-label="行ごとに独立変換">
+        <span>行ごとに独立変換</span>
+      </label>
+    </div>
+
+    <!-- 変換ボタン -->
+    <div class="flex flex-wrap gap-2 mb-4">
+      <button onclick="applyConversion('camel')" aria-label="camelCase変換"
+        class="conv-btn px-3 py-1.5 text-xs bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 font-mono font-medium">
+        camelCase
+      </button>
+      <button onclick="applyConversion('pascal')" aria-label="PascalCase変換"
+        class="conv-btn px-3 py-1.5 text-xs bg-purple-100 text-purple-700 rounded-md hover:bg-purple-200 font-mono font-medium">
+        PascalCase
+      </button>
+      <button onclick="applyConversion('snake')" aria-label="snake_case変換"
+        class="conv-btn px-3 py-1.5 text-xs bg-green-100 text-green-700 rounded-md hover:bg-green-200 font-mono font-medium">
+        snake_case
+      </button>
+      <button onclick="applyConversion('kebab')" aria-label="kebab-case変換"
+        class="conv-btn px-3 py-1.5 text-xs bg-yellow-100 text-yellow-700 rounded-md hover:bg-yellow-200 font-mono font-medium">
+        kebab-case
+      </button>
+      <button onclick="applyConversion('screaming')" aria-label="SCREAMING_SNAKE変換"
+        class="conv-btn px-3 py-1.5 text-xs bg-red-100 text-red-700 rounded-md hover:bg-red-200 font-mono font-medium">
+        SCREAMING_SNAKE
+      </button>
+      <button onclick="applyConversion('title')" aria-label="Title Case変換"
+        class="conv-btn px-3 py-1.5 text-xs bg-indigo-100 text-indigo-700 rounded-md hover:bg-indigo-200 font-mono font-medium">
+        Title Case
+      </button>
+      <button onclick="applyConversion('upper')" aria-label="UPPER CASE変換"
+        class="conv-btn px-3 py-1.5 text-xs bg-orange-100 text-orange-700 rounded-md hover:bg-orange-200 font-mono font-medium">
+        UPPER CASE
+      </button>
+      <button onclick="applyConversion('lower')" aria-label="lower case変換"
+        class="conv-btn px-3 py-1.5 text-xs bg-teal-100 text-teal-700 rounded-md hover:bg-teal-200 font-mono font-medium">
+        lower case
+      </button>
+    </div>
+  </div>
+
+  <!-- 全変換結果一覧 -->
+  <div id="results-container" class="space-y-3"></div>
+
+  <!-- コピートースト -->
+  <div id="copy-toast" class="hidden fixed bottom-6 right-6 bg-gray-800 text-white px-4 py-2 rounded-md text-sm shadow-lg">
+    コピーしました！
+  </div>
+</div>
+
+<script>
+function escapeHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+// テキストをワード分割（キャメル/パスカル/スネーク/ケバブ/スペース全対応）
+function tokenize(text) {
+  // camelCase/PascalCase 分割
+  let s = text
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
+    .replace(/[-_]+/g, ' ')
+    .trim();
+  return s.split(/\s+/).filter(Boolean);
+}
+
+function toCamel(words) {
+  return words.map((w,i) => i === 0 ? w.toLowerCase() : w[0].toUpperCase() + w.slice(1).toLowerCase()).join('');
+}
+function toPascal(words) {
+  return words.map(w => w[0].toUpperCase() + w.slice(1).toLowerCase()).join('');
+}
+function toSnake(words) {
+  return words.map(w => w.toLowerCase()).join('_');
+}
+function toKebab(words) {
+  return words.map(w => w.toLowerCase()).join('-');
+}
+function toScreaming(words) {
+  return words.map(w => w.toUpperCase()).join('_');
+}
+function toTitle(words) {
+  return words.map(w => w[0].toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+}
+function toUpper(words) {
+  return words.map(w => w.toUpperCase()).join(' ');
+}
+function toLower(words) {
+  return words.map(w => w.toLowerCase()).join(' ');
+}
+
+const CONVERTERS = {
+  camel:    { label: 'camelCase',          fn: toCamel },
+  pascal:   { label: 'PascalCase',         fn: toPascal },
+  snake:    { label: 'snake_case',         fn: toSnake },
+  kebab:    { label: 'kebab-case',         fn: toKebab },
+  screaming:{ label: 'SCREAMING_SNAKE',    fn: toScreaming },
+  title:    { label: 'Title Case',         fn: toTitle },
+  upper:    { label: 'UPPER CASE',         fn: toUpper },
+  lower:    { label: 'lower case',         fn: toLower },
+};
+
+function convertLine(line, type) {
+  const words = tokenize(line);
+  if (words.length === 0) return '';
+  return CONVERTERS[type].fn(words);
+}
+
+function convertInput(text, type) {
+  const lines = text.split('\n');
+  const perLine = document.getElementById('per-line').checked;
+  const arrayMode = document.getElementById('array-mode').checked;
+
+  let result;
+  if (perLine) {
+    const converted = lines.map(line => line.trim() ? convertLine(line.trim(), type) : '');
+    if (arrayMode) {
+      result = '["' + converted.filter(Boolean).join('","') + '"]';
+    } else {
+      result = converted.join('\n');
+    }
+  } else {
+    const allText = lines.join(' ').replace(/\s+/g, ' ').trim();
+    const converted = convertLine(allText, type);
+    result = arrayMode ? '["' + converted + '"]' : converted;
+  }
+  return result;
+}
+
+let lastActive = null;
+
+function applyConversion(type) {
+  lastActive = type;
+  convertAll();
+  // ハイライト
+  document.querySelectorAll('.conv-btn').forEach(btn => btn.classList.remove('ring-2','ring-offset-1','ring-gray-400'));
+  // ボタンのインデックスを探す
+}
+
+function convertAll() {
+  const text = document.getElementById('text-input').value;
+  const container = document.getElementById('results-container');
+  container.innerHTML = '';
+
+  if (!text.trim()) return;
+
+  Object.entries(CONVERTERS).forEach(([type, conf]) => {
+    const result = convertInput(text, type);
+    const isActive = type === lastActive;
+
+    const card = document.createElement('div');
+    card.className = 'bg-white rounded-xl shadow-md p-4 ' + (isActive ? 'ring-2 ring-blue-400' : '');
+
+    const header = document.createElement('div');
+    header.className = 'flex justify-between items-center mb-2';
+
+    const label = document.createElement('span');
+    label.className = 'text-xs font-mono font-bold text-gray-600';
+    label.textContent = conf.label;
+
+    const copyBtn = document.createElement('button');
+    copyBtn.className = 'px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded border border-gray-300 text-gray-600';
+    copyBtn.setAttribute('aria-label', conf.label + 'の結果をコピー');
+    copyBtn.textContent = 'コピー';
+    copyBtn.onclick = () => copyText(result);
+
+    header.appendChild(label);
+    header.appendChild(copyBtn);
+
+    const pre = document.createElement('pre');
+    pre.className = 'font-mono text-sm text-gray-800 whitespace-pre-wrap break-all bg-gray-50 rounded p-2';
+    pre.textContent = result;
+
+    card.appendChild(header);
+    card.appendChild(pre);
+    container.appendChild(card);
+  });
+}
+
+function copyText(text) {
+  navigator.clipboard.writeText(text).then(() => {
+    showToast();
+  }).catch(() => {
+    const el = document.createElement('textarea');
+    el.value = text;
+    document.body.appendChild(el);
+    el.select();
+    document.execCommand('copy');
+    document.body.removeChild(el);
+    showToast();
+  });
+}
+
+function showToast() {
+  const toast = document.getElementById('copy-toast');
+  toast.classList.remove('hidden');
+  setTimeout(() => toast.classList.add('hidden'), 2000);
+}
+</script>
+</body>
+</html>
